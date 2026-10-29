@@ -1,0 +1,9 @@
+project: savantenvs/lodepng
+target: lodepng_fuzzer
+testsuite:
+  - https://$MAYHEM_DOMAIN/$MAYHEM_PROJECT/$MAYHEM_TARGET/testsuite.tar
+  - file://mayhem/lodepng_fuzzer/testsuite
+cmds:
+  - cmd: /mayhem/lodepng_fuzzer
+    libfuzzer: true
+    timeout: 5
