@@ -1,5 +1,5 @@
 /*
-LodePNG version 20261006
+LodePNG version 20261101
 
 Copyright (c) 2005-2026 Lode Vandevenne
 
@@ -44,7 +44,7 @@ Rename this file to lodepng.cpp to use it for C++, or to lodepng.c to use it for
 #pragma warning( disable : 4996 ) /*VS does not like fopen, but fopen_s is not standard C so unusable here*/
 #endif /*_MSC_VER */
 
-const char* LODEPNG_VERSION_STRING = "20261006";
+const char* LODEPNG_VERSION_STRING = "20261101";
 
 /*
 This source file is divided into the following large parts. The code sections
@@ -5526,14 +5526,14 @@ unsigned lodepng_decode(unsigned char** out, unsigned* w, unsigned* h,
                         const unsigned char* in, size_t insize) {
   *out = 0;
   decodeGeneric(out, w, h, state, in, insize);
-  if(state->error) return state->error;
+  if(state->error) goto cleanup;
   if(!state->decoder.color_convert || lodepng_color_mode_equal(&state->info_raw, &state->info_png.color)) {
     /*same color type, no copying or converting of data needed*/
     /*store the info_png color settings on the info_raw so that the info_raw still reflects what colortype
     the raw image has to the end user*/
     if(!state->decoder.color_convert) {
       state->error = lodepng_color_mode_copy(&state->info_raw, &state->info_png.color);
-      if(state->error) return state->error;
+      if(state->error) goto cleanup;
     }
   } else { /*color conversion needed*/
     unsigned char* data = *out;
@@ -5543,17 +5543,25 @@ unsigned lodepng_decode(unsigned char** out, unsigned* w, unsigned* h,
     from grayscale input color type, to 8-bit grayscale or grayscale with alpha"*/
     if(!(state->info_raw.colortype == LCT_RGB || state->info_raw.colortype == LCT_RGBA)
        && !(state->info_raw.bitdepth == 8)) {
-      return 56; /*unsupported color mode conversion*/
+      state->error = 56; /*unsupported color mode conversion*/
+      goto cleanup;
     }
 
     outsize = lodepng_get_raw_size(*w, *h, &state->info_raw);
     *out = (unsigned char*)lodepng_malloc(outsize);
     if(!(*out)) {
       state->error = 83; /*alloc fail*/
+    } else {
+      state->error = lodepng_convert(*out, data, &state->info_raw,
+                                     &state->info_png.color, *w, *h);
     }
-    else state->error = lodepng_convert(*out, data, &state->info_raw,
-                                        &state->info_png.color, *w, *h);
     lodepng_free(data);
+  }
+
+cleanup:
+  if(state->error) {
+    lodepng_free(*out);
+    *out = 0;
   }
   return state->error;
 }
